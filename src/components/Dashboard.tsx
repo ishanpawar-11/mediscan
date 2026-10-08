@@ -1,53 +1,55 @@
 import React from 'react';
-import { DashboardStats, MedicineScanResult, Reminder } from '../types';
+import { DashboardStats, MedicineScanResult } from '../types';
 import { 
   Pill, 
   AlertTriangle, 
   Clock, 
   CheckCircle2, 
-  ArrowRight, 
   Camera, 
-  BellRing,
-  Calendar,
-  ChevronRight
+  ChevronRight,
+  History
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { OverviewSkeleton } from './common/Skeleton';
 
 interface DashboardProps {
   stats: DashboardStats;
   recentScans: MedicineScanResult[];
-  upcomingReminders: Reminder[];
+  isLoading?: boolean;
   onScanClick: () => void;
   onSelectScan: (scan: MedicineScanResult) => void;
   onViewAllHistory: () => void;
-  onViewReminders: () => void;
-  onToggleReminder: (id: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   stats,
   recentScans,
-  upcomingReminders,
+  isLoading = false,
   onScanClick,
   onSelectScan,
   onViewAllHistory,
-  onViewReminders,
-  onToggleReminder,
 }) => {
+  const { t } = useLanguage();
+
+  if (isLoading) {
+    return <OverviewSkeleton />;
+  }
+
   return (
     <div className="space-y-6">
 
-      {/* Overview Intro Banner - Minimal White */}
+      {/* Overview Intro Banner - Minimal Clinical White */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 sm:p-7 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-1.5 max-w-2xl">
             <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-              Clinical Optical Character Recognition & Expiration Auditing
+              Clinical Monitoring & Packaging Inspection
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Medication Verification Console
+              Medication Overview Console
             </h1>
             <p className="text-slate-600 text-sm leading-relaxed">
-              Verify pharmaceutical packaging, batch integrity, and expiration timelines through high-resolution computer vision and generative OCR analysis.
+              Summary of all scanned pharmaceutical packaging, expiration timelines, and batch records processed across the clinic repository.
             </p>
           </div>
 
@@ -57,35 +59,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white font-medium text-xs hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
             >
               <Camera className="w-3.5 h-3.5" />
-              Scan Medication
+              <span>{t('scanMedication')}</span>
             </button>
             <button
-              onClick={onViewReminders}
+              onClick={onViewAllHistory}
               className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
-              Configure Alarms
+              <History className="w-3.5 h-3.5 text-slate-500" />
+              <span>{t('scanHistory')}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Clinical Metrics Cards Grid */}
+      {/* Clinical Metrics Cards Grid (4 Cards: Total, Expired, Expiring Soon, Valid) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Scanned */}
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Total Scanned</span>
+            <span className="text-xs font-medium text-slate-500">{t('totalScanned')}</span>
             <Pill className="w-4 h-4 text-slate-400" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-semibold font-mono tabular-nums text-slate-900">
               {stats.totalScanned}
             </span>
-            <span className="text-xs text-slate-500">records</span>
+            <span className="text-xs text-slate-500">{t('records')}</span>
           </div>
-          <p className="mt-1 text-xs text-slate-400">Total logged entries</p>
+          <p className="mt-1 text-xs text-slate-400">{t('verifiedActive')}</p>
         </div>
 
         {/* Expired Status Alert */}
@@ -94,7 +96,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         }`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-medium ${stats.expiredCount > 0 ? 'text-rose-900' : 'text-slate-500'}`}>
-              Expired Alert
+              {t('expiredAlert')}
             </span>
             <AlertTriangle className={`w-4 h-4 ${stats.expiredCount > 0 ? 'text-rose-600' : 'text-slate-400'}`} />
           </div>
@@ -105,11 +107,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {stats.expiredCount}
             </span>
             <span className={`text-xs ${stats.expiredCount > 0 ? 'text-rose-700' : 'text-slate-500'}`}>
-              items
+              {t('items')}
             </span>
           </div>
           <p className={`mt-1 text-xs ${stats.expiredCount > 0 ? 'text-rose-700 font-medium' : 'text-slate-400'}`}>
-            {stats.expiredCount > 0 ? 'Immediate quarantine required' : 'No expired medications identified'}
+            {stats.expiredCount > 0 ? t('quarantineRequired') : 'No expired medications identified'}
           </p>
         </div>
 
@@ -119,7 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         }`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-medium ${stats.expiringSoonCount > 0 ? 'text-amber-900' : 'text-slate-500'}`}>
-              Expiring Soon
+              {t('expiringSoon')}
             </span>
             <Clock className={`w-4 h-4 ${stats.expiringSoonCount > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
           </div>
@@ -130,170 +132,100 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {stats.expiringSoonCount}
             </span>
             <span className={`text-xs ${stats.expiringSoonCount > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
-              under 60 days
+              {t('under60Days')}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-400">Review before prescription renewal</p>
+          <p className="mt-1 text-xs text-slate-400">{t('reviewRequired')}</p>
         </div>
 
-        {/* Active Reminders */}
+        {/* Valid Medications */}
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Active Schedules</span>
-            <BellRing className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-medium text-slate-500">{t('validMedications')}</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-semibold font-mono tabular-nums text-slate-900">
-              {stats.activeReminders}
+              {stats.validCount}
             </span>
-            <span className="text-xs text-slate-500">routines</span>
+            <span className="text-xs text-slate-500">{t('activeMedications')}</span>
           </div>
-          <p className="mt-1 text-xs text-slate-400">Audio and browser prompts enabled</p>
+          <p className="mt-1 text-xs text-slate-400">{t('safeToUse')}</p>
         </div>
 
       </div>
 
-      {/* Main Content Split: Recent Scans & Medication Routines */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Recent Scanned Log Table/Card */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{t('recentScannedMedications')}</h2>
+            <p className="text-xs text-slate-500">{t('recentScannedDesc')}</p>
+          </div>
+          <button
+            onClick={onViewAllHistory}
+            className="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors cursor-pointer"
+          >
+            <span>{t('fullArchive')}</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
-        {/* Recent Scanned Log (2 Cols) */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">Recent Scanned Medications</h2>
-              <p className="text-xs text-slate-500">Latest pharmaceutical records processed by optical inspection</p>
-            </div>
+        {recentScans.length === 0 ? (
+          <div className="text-center py-12">
+            <Pill className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-xs font-medium text-slate-600">{t('noMedicationRecords')}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{t('noMedicationRecordsDesc')}</p>
             <button
-              onClick={onViewAllHistory}
-              className="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors cursor-pointer"
+              onClick={onScanClick}
+              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <span>Full Archive</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <Camera className="w-3.5 h-3.5" />
+              <span>{t('scanMedication')}</span>
             </button>
           </div>
-
-          {recentScans.length === 0 ? (
-            <div className="text-center py-10">
-              <Pill className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-xs font-medium text-slate-600">No medication records yet</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Scan your first medicine packaging strip to populate logs.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {recentScans.map((scan) => (
-                <div
-                  key={scan.id}
-                  onClick={() => onSelectScan(scan)}
-                  className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50/80 rounded-lg px-2 -mx-2 transition-colors cursor-pointer group"
-                >
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm text-slate-900 group-hover:text-slate-800 truncate">
-                        {scan.medicineName}
-                      </span>
-                      <span className="text-xs text-slate-400">·</span>
-                      <span className="text-xs font-mono text-slate-500">
-                        {scan.batchNumber}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span>{scan.genericName || 'Formula recorded'}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>Exp: {scan.expiryDate}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded border ${
-                      scan.status === 'EXPIRED'
-                        ? 'bg-rose-50 text-rose-700 border-rose-200'
-                        : scan.status === 'EXPIRING_SOON'
-                        ? 'bg-amber-50 text-amber-800 border-amber-200'
-                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    }`}>
-                      {scan.status === 'EXPIRED' ? 'Expired' : scan.status === 'EXPIRING_SOON' ? 'Expiring Soon' : 'Valid'}
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {recentScans.map((scan) => (
+              <div
+                key={scan.id}
+                onClick={() => onSelectScan(scan)}
+                className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50/80 rounded-lg px-2 -mx-2 transition-colors cursor-pointer group"
+              >
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm text-slate-900 group-hover:text-slate-800 truncate">
+                      {scan.medicineName}
                     </span>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Active Routines / Reminders Column (1 Col) */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">Active Schedules</h2>
-              <p className="text-xs text-slate-500">Configured dose times</p>
-            </div>
-            <button
-              onClick={onViewReminders}
-              className="text-xs font-medium text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <span>Manage</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {upcomingReminders.length === 0 ? (
-            <div className="text-center py-10">
-              <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-xs font-medium text-slate-600">No scheduled routines</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Add an alert for regular or antibiotic courses.</p>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {upcomingReminders.map((rem) => (
-                <div
-                  key={rem.id}
-                  className="p-3 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors bg-slate-50/50 flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-slate-900">
-                        {rem.time}
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        {rem.frequency}
-                      </span>
-                    </div>
-                    <p className="text-xs font-medium text-slate-800 truncate mt-0.5">
-                      {rem.medicineName}
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      {rem.dosage} · {rem.foodTiming}
-                    </p>
+                    <span className="text-xs text-slate-400">·</span>
+                    <span className="text-xs font-mono text-slate-500">
+                      {scan.batchNumber}
+                    </span>
                   </div>
 
-                  <button
-                    onClick={() => onToggleReminder(rem.id)}
-                    className={`px-2.5 py-1 text-[11px] font-medium rounded border transition-colors cursor-pointer ${
-                      rem.isActive
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
-                    }`}
-                  >
-                    {rem.isActive ? 'Active' : 'Paused'}
-                  </button>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span>{scan.genericName || 'Formula recorded'}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Exp: {scan.expiryDate}</span>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
 
-          <div className="pt-2">
-            <button
-              onClick={onViewReminders}
-              className="w-full py-2 px-3 rounded-lg border border-dashed border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
-              Schedule New Dose Reminder
-            </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded border ${
+                    scan.status === 'EXPIRED'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                      : scan.status === 'EXPIRING_SOON'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  }`}>
+                    {scan.status === 'EXPIRED' ? 'Expired' : scan.status === 'EXPIRING_SOON' ? 'Expiring Soon' : 'Valid'}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-
+        )}
       </div>
 
     </div>

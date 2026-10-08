@@ -17,14 +17,19 @@ import {
   ArrowUp,
   ArrowDown,
   X,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Camera
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { ScanHistorySkeleton } from './common/Skeleton';
 
 interface ScanHistoryProps {
   scans: MedicineScanResult[];
+  isLoading?: boolean;
   onSelectScan: (scan: MedicineScanResult) => void;
   onDeleteScan: (id: string) => void;
   onRestoreSamples: () => void;
+  onNavigateToScan?: () => void;
 }
 
 type SortField = 'expiryDate' | 'medicineName' | 'scannedAt';
@@ -87,15 +92,22 @@ function parseExpiryDateTimestamp(dateStr?: string): number {
 
 export const ScanHistory: React.FC<ScanHistoryProps> = ({
   scans,
+  isLoading = false,
   onSelectScan,
   onDeleteScan,
   onRestoreSamples,
+  onNavigateToScan,
 }) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ExpiryStatus>('ALL');
   const [sortField, setSortField] = useState<SortField>('expiryDate');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  if (isLoading) {
+    return <ScanHistorySkeleton />;
+  }
 
   // Status counters from total scans for quick reference in badges
   const counts = useMemo(() => {
@@ -238,13 +250,25 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Scan Medication (Homepage /) */}
+          {onNavigateToScan && (
+            <button
+              onClick={onNavigateToScan}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 text-white font-medium text-xs hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+              title="Return to Scan Medication"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>{t('scanMedication')}</span>
+            </button>
+          )}
+
           {/* Export CSV Button */}
           <button
             onClick={handleExportCSV}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 text-white font-medium text-xs hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium transition-colors shadow-xs cursor-pointer"
             title="Download CSV log of scanned medications"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>Export CSV</span>
           </button>
 
@@ -255,7 +279,7 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
             title="Reset database to initial reference records"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset Samples</span>
+            <span className="hidden sm:inline">Reset</span>
           </button>
         </div>
       </div>
@@ -429,19 +453,36 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
         <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-xl space-y-3">
           <Pill className="w-8 h-8 text-slate-300 mx-auto" />
           <div>
-            <p className="text-sm font-semibold text-slate-800">No matching medication records found</p>
+            <p className="text-sm font-semibold text-slate-800">
+              {scans.length === 0 ? t('noMedicationRecords') : 'No matching medication records found'}
+            </p>
             <p className="text-xs text-slate-500 mt-0.5">
-              {searchTerm ? `No results matching "${searchTerm}"` : 'No records match the active status filter.'}
+              {scans.length === 0
+                ? t('noMedicationRecordsDesc')
+                : searchTerm
+                ? `No results matching "${searchTerm}"`
+                : 'No records match the active status filter.'}
             </p>
           </div>
-          {isFilterActive && (
-            <button
-              onClick={handleResetFilters}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              Clear Search & Filters
-            </button>
-          )}
+          <div className="flex items-center justify-center gap-2 pt-1">
+            {onNavigateToScan && (
+              <button
+                onClick={onNavigateToScan}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-medium hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>{t('scanMedication')}</span>
+              </button>
+            )}
+            {isFilterActive && (
+              <button
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

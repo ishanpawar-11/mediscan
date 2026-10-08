@@ -6,7 +6,19 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { matchMedicineInCatalog } from './src/data/medicineCatalog';
 
 const app = express();
-const PORT = 3000;
+// Port 3000 is required for AI Studio dev server & proxy routing.
+// In external standalone production deployments, respect custom process.env.PORT.
+const PORT = (process.env.PORT && process.env.PORT !== '8080')
+  ? parseInt(process.env.PORT, 10)
+  : 3000;
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // Increase payload limit for high-resolution medicine images
 app.use(express.json({ limit: '25mb' }));
@@ -66,18 +78,6 @@ export interface StoredScanRecord {
 
 interface DbData {
   scans: StoredScanRecord[];
-  reminders: Array<{
-    id: string;
-    medicineId?: string;
-    medicineName: string;
-    dosage: string;
-    time: string;
-    frequency: string;
-    foodTiming: string;
-    isActive: boolean;
-    notes?: string;
-    createdAt: string;
-  }>;
 }
 
 function getInitialDbData(): DbData {
@@ -207,32 +207,6 @@ function getInitialDbData(): DbData {
         statusMessage: 'Valid for 12 months (Expires Sept 2026)',
         scannedAt: now
       }
-    ],
-    reminders: [
-      {
-        id: 'rem-1',
-        medicineId: 'scan-102',
-        medicineName: 'Amoxicillin 500mg',
-        dosage: '1 Capsule',
-        time: '09:00 AM',
-        frequency: 'Twice Daily',
-        foodTiming: 'After Food',
-        isActive: true,
-        notes: 'Take with full glass of water',
-        createdAt: now
-      },
-      {
-        id: 'rem-2',
-        medicineId: 'scan-103',
-        medicineName: 'Augmentin 625 Duo',
-        dosage: '1 Tablet',
-        time: '09:00 PM',
-        frequency: 'Daily',
-        foodTiming: 'After Food',
-        isActive: true,
-        notes: 'Finish 7 day antibiotic course',
-        createdAt: now
-      }
     ]
   };
 }
@@ -254,7 +228,9 @@ function readDb(): DbData {
 
 function writeDb(data: DbData) {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    const tempFile = `${DB_FILE}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempFile, DB_FILE);
   } catch (err) {
     console.error('Error writing DB:', err);
   }
@@ -708,7 +684,6 @@ app.get('/api/dashboard', (req, res) => {
   const expiredCount = db.scans.filter(s => s.status === 'EXPIRED').length;
   const expiringSoonCount = db.scans.filter(s => s.status === 'EXPIRING_SOON').length;
   const validCount = db.scans.filter(s => s.status === 'VALID').length;
-  const activeReminders = db.reminders.filter(r => r.isActive).length;
 
   res.json({
     stats: {
@@ -716,10 +691,8 @@ app.get('/api/dashboard', (req, res) => {
       expiredCount,
       expiringSoonCount,
       validCount,
-      activeReminders,
     },
     recentScans: db.scans.slice(0, 6),
-    upcomingReminders: db.reminders.filter(r => r.isActive).slice(0, 5)
   });
 });
 
@@ -747,7 +720,6 @@ app.get('/api/scans', (req, res) => {
 app.delete('/api/scans/:id', (req, res) => {
   const db = readDb();
   db.scans = db.scans.filter(s => s.id !== req.params.id);
-  db.reminders = db.reminders.filter(r => r.medicineId !== req.params.id);
   writeDb(db);
   res.json({ success: true, message: 'Scan deleted successfully' });
 });
@@ -804,56 +776,7 @@ app.put('/api/scans/:id', (req, res) => {
   res.json(updatedScan);
 });
 
-// 4. Reminders endpoints
-app.get('/api/reminders', (req, res) => {
-  const db = readDb();
-  res.json(db.reminders);
-});
-
-app.post('/api/reminders', (req, res) => {
-  const { medicineId, medicineName, dosage, time, frequency, foodTiming, notes } = req.body;
-  if (!medicineName || !time) {
-    return res.status(400).json({ error: 'Medicine name and reminder time are required' });
-  }
-
-  const db = readDb();
-  const newReminder = {
-    id: 'rem-' + Date.now(),
-    medicineId: medicineId || '',
-    medicineName,
-    dosage: dosage || '1 dose',
-    time,
-    frequency: frequency || 'Daily',
-    foodTiming: foodTiming || 'After Food',
-    isActive: true,
-    notes: notes || '',
-    createdAt: new Date().toISOString()
-  };
-
-  db.reminders.unshift(newReminder);
-  writeDb(db);
-  res.json(newReminder);
-});
-
-app.put('/api/reminders/:id/toggle', (req, res) => {
-  const db = readDb();
-  const rem = db.reminders.find(r => r.id === req.params.id);
-  if (!rem) {
-    return res.status(404).json({ error: 'Reminder not found' });
-  }
-  rem.isActive = !rem.isActive;
-  writeDb(db);
-  res.json(rem);
-});
-
-app.delete('/api/reminders/:id', (req, res) => {
-  const db = readDb();
-  db.reminders = db.reminders.filter(r => r.id !== req.params.id);
-  writeDb(db);
-  res.json({ success: true });
-});
-
-// 5. Seed sample database
+// 4. Seed sample database
 app.post('/api/seed-samples', (req, res) => {
   const initial = getInitialDbData();
   writeDb(initial);
@@ -867,14 +790,16 @@ app.post('/api/scan-medicine', async (req, res) => {
   try {
     const { imageBase64, imagesBase64, regions, processingMethodUsed, presetType } = req.body;
 
-    const imageList: string[] = Array.isArray(imagesBase64) && imagesBase64.length > 0
+    const rawImageList: unknown[] = Array.isArray(imagesBase64) && imagesBase64.length > 0
       ? imagesBase64
       : imageBase64
       ? [imageBase64]
       : [];
 
-    if (imageList.length === 0 && (!regions || regions.length === 0)) {
-      return res.status(400).json({ error: 'At least one image frame or region is required.' });
+    const imageList: string[] = rawImageList.filter((img): img is string => typeof img === 'string' && img.length > 30);
+
+    if (imageList.length === 0 && (!Array.isArray(regions) || regions.length === 0)) {
+      return res.status(400).json({ error: 'At least one valid medicine image frame or region is required.' });
     }
 
     const currentDate = new Date();

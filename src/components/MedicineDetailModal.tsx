@@ -8,7 +8,6 @@ import {
   Clock, 
   Volume2, 
   VolumeX, 
-  BellRing, 
   Printer, 
   Info,
   FileText,
@@ -22,13 +21,11 @@ import {
 interface MedicineDetailModalProps {
   scan: MedicineScanResult | null;
   onClose: () => void;
-  onSetReminder: (scan: MedicineScanResult) => void;
 }
 
 export const MedicineDetailModal: React.FC<MedicineDetailModalProps> = ({
   scan,
   onClose,
-  onSetReminder,
 }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showRawOcr, setShowRawOcr] = useState(false);
@@ -294,18 +291,8 @@ export const MedicineDetailModal: React.FC<MedicineDetailModalProps> = ({
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
-              onClick={() => {
-                onSetReminder(scan);
-                onClose();
-              }}
-              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-            >
-              <BellRing className="w-3.5 h-3.5" />
-              <span>Set Reminder</span>
-            </button>
-            <button
               onClick={onClose}
-              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs transition-colors cursor-pointer"
             >
               Close
             </button>

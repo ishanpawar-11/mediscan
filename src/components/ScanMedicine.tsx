@@ -20,7 +20,6 @@ import {
   CheckCircle2, 
   Clock, 
   SlidersHorizontal, 
-  BellRing,
   Eye,
   RotateCcw,
   RotateCw,
@@ -57,14 +56,12 @@ interface FrameItem {
 
 interface ScanMedicineProps {
   onScanComplete: (result: MedicineScanResult) => void;
-  onSetReminderForMedicine: (result: MedicineScanResult) => void;
   recentScans?: MedicineScanResult[];
   onSelectScan?: (result: MedicineScanResult) => void;
 }
 
 export const ScanMedicine: React.FC<ScanMedicineProps> = ({
   onScanComplete,
-  onSetReminderForMedicine,
   recentScans = [],
   onSelectScan,
 }) => {
@@ -2054,14 +2051,6 @@ export const ScanMedicine: React.FC<ScanMedicineProps> = ({
             >
               {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               <span>{isSpeaking ? 'Stop Audio' : 'Audio Explanation'}</span>
-            </button>
-
-            <button
-              onClick={() => onSetReminderForMedicine(scanResult)}
-              className="w-full sm:w-auto flex-1 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <BellRing className="w-4 h-4" />
-              <span>Configure Schedule Reminder</span>
             </button>
           </div>
 

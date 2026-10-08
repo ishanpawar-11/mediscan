@@ -50,26 +50,10 @@ export interface MedicineScanResult {
   imageUrl?: string;
 }
 
-export type FrequencyType = 'Daily' | 'Twice Daily' | 'Three Times Daily' | 'Weekly' | 'As Needed';
-export type FoodTimingType = 'Before Food' | 'After Food' | 'With Food' | 'Any Time';
-
-export interface Reminder {
-  id: string;
-  medicineId?: string;
-  medicineName: string;
-  dosage: string;
-  time: string; // e.g. "09:00 PM" or "21:00"
-  frequency: FrequencyType;
-  foodTiming: FoodTimingType;
-  isActive: boolean;
-  notes?: string;
-  createdAt: string;
-}
-
 export interface DashboardStats {
   totalScanned: number;
   expiredCount: number;
   expiringSoonCount: number;
   validCount: number;
-  activeReminders: number;
 }
+
