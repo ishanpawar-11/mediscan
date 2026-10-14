@@ -788,30 +788,42 @@ export const ScanMedicine: React.FC<ScanMedicineProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageBase64: primaryFrame,
-          imagesBase64: [primaryFrame],
           presetType: detectedPreset,
           regions: regionsToSendPayload,
           processingMethodUsed: `Region-Based OCR (${regionsToSend.length} zones) + Crimp Magnification`,
         }),
       });
 
-      if (!response.ok) {
-        let errMessage = 'Failed to analyze packaging. Please verify image clarity and retry.';
+      // Safe Response Parsing: Inspect Content-Type and read raw body text before parsing
+      const contentType = response.headers.get('content-type') || '';
+      const rawBody = await response.text().catch(() => '');
+      let parsedData: any = null;
+
+      if (contentType.includes('application/json') && rawBody) {
         try {
-          const errData = await response.json();
-          errMessage = errData.details || errData.error || errMessage;
+          parsedData = JSON.parse(rawBody);
         } catch {
-          const rawText = await response.text().catch(() => '');
-          if (rawText.includes('too large') || response.status === 413) {
-            errMessage = 'Image size too large. Please use a closer or single clear photo.';
-          } else if (response.status === 503 || response.status === 504) {
-            errMessage = 'OCR service is experiencing high traffic. Please retry in a moment.';
-          }
+          parsedData = null;
+        }
+      }
+
+      if (!response.ok || !parsedData) {
+        let errMessage = 'Failed to analyze packaging. Please verify image clarity and retry.';
+        if (parsedData && (parsedData.details || parsedData.error)) {
+          errMessage = parsedData.details || parsedData.error;
+        } else if (response.status === 413 || rawBody.toLowerCase().includes('too large')) {
+          errMessage = 'Image size too large. Please use a closer or single photo under 25MB.';
+        } else if (response.status === 504 || response.status === 503) {
+          errMessage = 'Recognition service timed out. Please retry with a well-lit photo of the strip.';
+        } else if (response.status === 404) {
+          errMessage = 'Scan endpoint was temporarily unreachable. Please retry.';
+        } else if (!contentType.includes('application/json')) {
+          errMessage = `Server communication advisory (HTTP ${response.status}). Please try scanning again.`;
         }
         throw new Error(errMessage);
       }
 
-      const result: MedicineScanResult = await response.json();
+      const result: MedicineScanResult = parsedData;
       setScanResult(result);
 
       // Pre-fill edit form
@@ -853,11 +865,22 @@ export const ScanMedicine: React.FC<ScanMedicineProps> = ({
         body: JSON.stringify(editForm),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update verification details.');
+      const contentType = response.headers.get('content-type') || '';
+      const rawBody = await response.text().catch(() => '');
+      let updatedData: any = null;
+      if (contentType.includes('application/json') && rawBody) {
+        try {
+          updatedData = JSON.parse(rawBody);
+        } catch {
+          updatedData = null;
+        }
       }
 
-      const updated: MedicineScanResult = await response.json();
+      if (!response.ok || !updatedData) {
+        throw new Error(updatedData?.error || 'Failed to update verification details.');
+      }
+
+      const updated: MedicineScanResult = updatedData;
       setScanResult(updated);
       onScanComplete(updated);
       setEditSuccessMsg('Details verified & saved.');

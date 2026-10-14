@@ -5,10 +5,10 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { matchMedicineInCatalog } from './src/data/medicineCatalog';
 
-const app = express();
+export const app = express();
 // Port 3000 is required for AI Studio dev server & proxy routing.
 // In external standalone production deployments, respect custom process.env.PORT.
-const PORT = (process.env.PORT && process.env.PORT !== '8080')
+const PORT = (process.env.NODE_ENV === 'production' && process.env.PORT)
   ? parseInt(process.env.PORT, 10)
   : 3000;
 
@@ -28,17 +28,42 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (err && (err.type === 'entity.too.large' || err.status === 413)) {
     return res.status(413).json({
+      success: false,
+      errorCode: 'PAYLOAD_TOO_LARGE',
       error: 'Image payload is too large.',
       details: 'Please capture a slightly closer or single photo to stay within processing limits.'
     });
   }
   if (err instanceof SyntaxError && 'body' in err) {
     return res.status(400).json({
+      success: false,
+      errorCode: 'MALFORMED_JSON',
       error: 'Invalid JSON request payload.',
-      details: 'Malformed request data received.'
+      details: 'Malformed request data received by server.'
     });
   }
   next(err);
+});
+
+// API route middleware to guarantee JSON Content-Type and request timeout protection
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+  // Request timeout protection (25s) to prevent reverse proxy/Cloud Run gateway HTML 504 errors
+  const timer = setTimeout(() => {
+    if (!res.headersSent) {
+      res.status(504).json({
+        success: false,
+        errorCode: 'REQUEST_TIMEOUT',
+        error: 'The scan request took too long to process.',
+        details: 'Image recognition operation exceeded the 25-second limit. Please retry with a clear photo.'
+      });
+    }
+  }, 25000);
+
+  res.on('finish', () => clearTimeout(timer));
+  res.on('close', () => clearTimeout(timer));
+  next();
 });
 
 // Helper directory & DB file setup
@@ -808,6 +833,7 @@ app.post('/api/seed-samples', (req, res) => {
 // Architecture:
 // Image -> Preprocessing & Region Slicing -> Multi-Region OCR -> Extracted Text -> Deterministic Field Normalization -> Database Validation & Enrichment -> Result
 app.post('/api/scan-medicine', async (req, res) => {
+  const requestId = 'req-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
   try {
     const { imageBase64, imagesBase64, regions, processingMethodUsed, presetType } = req.body;
 
@@ -817,10 +843,62 @@ app.post('/api/scan-medicine', async (req, res) => {
       ? [imageBase64]
       : [];
 
-    const imageList: string[] = rawImageList.filter((img): img is string => typeof img === 'string' && img.length > 30);
+    const imageList: string[] = rawImageList.filter((img): img is string => typeof img === 'string' && img.length > 10);
 
+    // 1. Validation: Check if an image is provided
     if (imageList.length === 0 && (!Array.isArray(regions) || regions.length === 0)) {
-      return res.status(400).json({ error: 'At least one valid medicine image frame or region is required.' });
+      return res.status(400).json({
+        success: false,
+        requestId,
+        errorCode: 'EMPTY_IMAGE_PAYLOAD',
+        error: 'No medicine image provided.',
+        details: 'Please capture or upload a clear photo of the medicine strip or packaging.'
+      });
+    }
+
+    const primaryDataUrl = imageList[0] || (regions && regions[0]?.dataUrl) || '';
+
+    // 2. Validation: Check MIME type if data URL
+    if (primaryDataUrl.startsWith('data:')) {
+      const mimeMatch = primaryDataUrl.match(/^data:([a-zA-Z0-9\/\+\-\.]+);base64,/);
+      const mime = mimeMatch ? mimeMatch[1].toLowerCase() : '';
+      const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (mime && !allowedMimes.includes(mime)) {
+        return res.status(415).json({
+          success: false,
+          requestId,
+          errorCode: 'UNSUPPORTED_MEDIA_TYPE',
+          error: `Unsupported image format (${mime}).`,
+          details: 'Only JPG, JPEG, PNG, and WebP medicine packaging images are supported.'
+        });
+      }
+    }
+
+    // 3. Validation: Verify base64 content integrity
+    const base64Clean = primaryDataUrl.replace(/^data:[^;]+;base64,/, '').trim();
+    if (base64Clean.length < 40) {
+      return res.status(400).json({
+        success: false,
+        requestId,
+        errorCode: 'CORRUPTED_IMAGE',
+        error: 'Corrupted or unreadable image data.',
+        details: 'The image payload contains insufficient or invalid byte data.'
+      });
+    }
+
+    try {
+      const testBuffer = Buffer.from(base64Clean.slice(0, 80), 'base64');
+      if (testBuffer.length < 8) {
+        throw new Error('Invalid byte buffer');
+      }
+    } catch {
+      return res.status(400).json({
+        success: false,
+        requestId,
+        errorCode: 'CORRUPTED_IMAGE',
+        error: 'Corrupted image encoding.',
+        details: 'The image base64 byte stream is invalid and cannot be processed.'
+      });
     }
 
     const currentDate = new Date();
@@ -1458,18 +1536,58 @@ Current Calendar Reference Date: ${currentDateFormatted}.`;
       imageUrl: primaryImage && primaryImage.length < 500000 ? primaryImage : undefined
     };
 
-    // Save to DB
+    // Save to DB (prevent rapid duplicate records from user retries)
     const db = readDb();
-    db.scans.unshift(scanRecord);
-    writeDb(db);
+    const isRecentDuplicate = db.scans.length > 0 &&
+      db.scans[0].medicineName === scanRecord.medicineName &&
+      db.scans[0].batchNumber === scanRecord.batchNumber &&
+      (Date.now() - new Date(db.scans[0].scannedAt).getTime() < 12000);
 
-    res.json(scanRecord);
+    if (!isRecentDuplicate) {
+      db.scans.unshift(scanRecord);
+      writeDb(db);
+    }
+
+    // Return unified scan response
+    const isConfidentMatch = !identificationWarning && confidenceScore >= 60 && !rawAiResult.isUncertain && scanRecord.medicineName !== 'Unidentified Medicine';
+    res.status(200).json({
+      success: true,
+      requestId,
+      isConfident: isConfidentMatch,
+      ...scanRecord
+    });
 
   } catch (err: any) {
-    console.error('Error in /api/scan-medicine:', err);
+    console.error(`[Scan API Error] [${requestId}]:`, err);
     res.status(500).json({
+      success: false,
+      requestId,
+      errorCode: err.code || 'SCAN_PROCESSING_ERROR',
       error: 'Failed to process medicine scan.',
       details: err.message || 'Unknown processing error. Ensure the image is clear and try again.'
+    });
+  }
+});
+
+// Explicit API 404 handler - prevents HTML falling through to API consumers
+app.all('/api/*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    errorCode: 'ROUTE_NOT_FOUND',
+    error: `API route ${req.method} ${req.path} not found.`,
+    details: 'The requested API route does not exist. Verify the endpoint path and HTTP method.'
+  });
+});
+
+// Centralized error handler for all API routes - guarantees JSON response
+app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('[API Internal Error]', err);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({
+      success: false,
+      errorCode: err.code || 'INTERNAL_SERVER_ERROR',
+      error: err.message || 'An unexpected internal server error occurred.',
+      details: err.details || undefined
     });
   }
 });
@@ -1489,6 +1607,13 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({
+          success: false,
+          errorCode: 'ROUTE_NOT_FOUND',
+          error: `API route ${req.method} ${req.path} not found.`
+        });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
