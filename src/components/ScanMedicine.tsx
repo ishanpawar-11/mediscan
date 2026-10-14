@@ -324,7 +324,7 @@ export const ScanMedicine: React.FC<ScanMedicineProps> = ({
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.86);
 
     const { enhancedDataUrl, sharpnessScore } = await processImageForOCR(rawDataUrl, {
       ...preprocessing,
@@ -364,7 +364,7 @@ export const ScanMedicine: React.FC<ScanMedicineProps> = ({
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const raw = canvas.toDataURL('image/jpeg', 0.92);
+        const raw = canvas.toDataURL('image/jpeg', 0.86);
         const { enhancedDataUrl, sharpnessScore } = await processImageForOCR(raw, {
           ...preprocessing,
           rotation: rotationAngle
@@ -765,8 +765,9 @@ export const ScanMedicine: React.FC<ScanMedicineProps> = ({
 
       setLoadingStep('4. Performing timeline consistency verification & catalog cross-referencing...');
 
-      // Prepare payload: send enhanced versions of all captured frames + detected region crops
+      // Prepare payload: send primary high-resolution frame + zoomed crimp & margin region crops
       const enhancedFramesPayload = frames.map((f) => f.enhancedDataUrl);
+      const primaryFrame = enhancedFramesPayload[activeFrameIndex] || enhancedFramesPayload[0];
 
       // Check if active frame was loaded from a preset strip
       const activeFrame = frames[activeFrameIndex] || frames[0];
@@ -774,26 +775,40 @@ export const ScanMedicine: React.FC<ScanMedicineProps> = ({
         ? activeFrame.id.replace('preset-', '')
         : undefined;
 
+      // Select top focused regions (crimps and margins) to maximize OCR accuracy without overloading payload
+      const regionsToSendPayload = regionsToSend.slice(0, 3).map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        dataUrl: r.dataUrl,
+      }));
+
       const response = await fetch('/api/scan-medicine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imagesBase64: enhancedFramesPayload.slice(0, 3),
-          imageBase64: enhancedFramesPayload[activeFrameIndex] || enhancedFramesPayload[0],
+          imageBase64: primaryFrame,
+          imagesBase64: [primaryFrame],
           presetType: detectedPreset,
-          regions: regionsToSend.slice(0, 4).map((r) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            dataUrl: r.dataUrl,
-          })),
+          regions: regionsToSendPayload,
           processingMethodUsed: `Region-Based OCR (${regionsToSend.length} zones) + Crimp Magnification`,
         }),
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.details || errData.error || 'Failed to analyze packaging. Please verify clarity and retry.');
+        let errMessage = 'Failed to analyze packaging. Please verify image clarity and retry.';
+        try {
+          const errData = await response.json();
+          errMessage = errData.details || errData.error || errMessage;
+        } catch {
+          const rawText = await response.text().catch(() => '');
+          if (rawText.includes('too large') || response.status === 413) {
+            errMessage = 'Image size too large. Please use a closer or single clear photo.';
+          } else if (response.status === 503 || response.status === 504) {
+            errMessage = 'OCR service is experiencing high traffic. Please retry in a moment.';
+          }
+        }
+        throw new Error(errMessage);
       }
 
       const result: MedicineScanResult = await response.json();

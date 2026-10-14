@@ -235,6 +235,92 @@ export const MEDICINE_CATALOG: CatalogEntry[] = [
       'Risk of tendonitis and tendon rupture — rest if tendon pain appears.',
       'Wear sunscreen and avoid intense direct sun exposure during the course.'
     ]
+  },
+  {
+    id: 'aspirin',
+    genericName: 'Aspirin / Acetylsalicylic Acid',
+    brandNames: ['Ecosprin 75', 'Ecosprin 150', 'Disprin', 'Bayer Aspirin', 'Loprin', 'Delisprin'],
+    therapeuticClass: 'Antiplatelet & Analgesic',
+    typicalStrengths: ['75mg', '150mg', '325mg', '500mg'],
+    commonManufacturers: ['USV', 'Bayer', 'Reckitt Benckiser', 'Torrent', 'Cipla'],
+    purpose: ['Cardiovascular prevention', 'Blood clot prevention (antiplatelet)', 'Transient ischemic attack (TIA) prevention', 'Post-stent therapy'],
+    simpleExplanation: 'Low-dose aspirin irreversibly inhibits platelet COX-1 enzyme, preventing blood platelets from clumping together to form arterial clots.',
+    dosageGuidance: 'Take once daily after a main meal with a full glass of water. Swallow gastro-resistant (enteric-coated) tablets whole.',
+    sideEffects: ['Mild dyspepsia or heartburn', 'Increased bleeding tendency or easy bruising', 'Nausea'],
+    storageInstructions: 'Store in dry place below 25°C protected from moisture.',
+    precautions: [
+      'Contraindicated in active peptic ulcer or hemophilia bleeding disorders.',
+      'Inform surgeon or dentist before any surgical or dental procedures.',
+      'Avoid combining with other NSAIDs without medical supervision.'
+    ]
+  },
+  {
+    id: 'omeprazole',
+    genericName: 'Omeprazole',
+    brandNames: ['Omez 20', 'Omez', 'Prilosec', 'Omee', 'Omecip', 'Ocid'],
+    therapeuticClass: 'Proton Pump Inhibitor (PPI)',
+    typicalStrengths: ['10mg', '20mg', '40mg'],
+    commonManufacturers: ['Dr. Reddy’s', 'Alkem', 'Cipla', 'Zydus'],
+    purpose: ['Gastroesophageal reflux disease (GERD)', 'Gastric & duodenal ulcer healing', 'Heartburn relief'],
+    simpleExplanation: 'Omeprazole binds to the proton pumps in stomach lining cells, reducing gastric acid production for sustained symptom relief.',
+    dosageGuidance: 'Take 1 capsule 30-60 minutes before breakfast with a glass of water. Swallow whole.',
+    sideEffects: ['Headache', 'Mild diarrhea or constipation', 'Stomach ache', 'Nausea'],
+    storageInstructions: 'Keep in moisture-proof blister below 25°C.',
+    precautions: [
+      'Long-term use may reduce magnesium and vitamin B12 absorption.',
+      'Check with doctor before taking together with clopidogrel.'
+    ]
+  },
+  {
+    id: 'calcium-d3',
+    genericName: 'Calcium Carbonate & Vitamin D3 (Cholecalciferol)',
+    brandNames: ['Shelcal 500', 'Cipcal 500', 'Calcimax 500', 'Gemcal', 'Corcium'],
+    typicalStrengths: ['500mg + 250IU', '500mg + 400IU'],
+    therapeuticClass: 'Nutritional Mineral & Bone Density Supplement',
+    commonManufacturers: ['Torrent Pharmaceuticals', 'Cipla', 'Meyer Organics', 'Alkem'],
+    purpose: ['Osteoporosis prevention & treatment', 'Calcium deficiency', 'Bone density maintenance', 'Pregnancy & lactation calcium support'],
+    simpleExplanation: 'Provides essential bioavailable elemental calcium to strengthen bones and teeth, paired with Vitamin D3 to facilitate intestinal calcium absorption.',
+    dosageGuidance: 'Take 1 tablet daily with or after meals to maximize gastrointestinal absorption.',
+    sideEffects: ['Mild constipation', 'Flatulence', 'Abdominal bloating'],
+    storageInstructions: 'Store in a dry location below 25°C away from heat and direct sunlight.',
+    precautions: [
+      'Avoid taking simultaneously with iron or thyroid hormone supplements (space by 2 to 4 hours).',
+      'Caution in patients with history of kidney stones or hypercalcemia.'
+    ]
+  },
+  {
+    id: 'losartan',
+    genericName: 'Losartan Potassium',
+    brandNames: ['Losar 50', 'Losacar', 'Cozaar', 'Repace', 'Alsartan'],
+    therapeuticClass: 'Angiotensin II Receptor Blocker (ARB)',
+    typicalStrengths: ['25mg', '50mg', '100mg'],
+    commonManufacturers: ['Unichem', 'Zydus', 'Sun Pharma', 'Merck'],
+    purpose: ['Hypertension (high blood pressure)', 'Stroke reduction in hypertensive patients', 'Diabetic kidney disease protection'],
+    simpleExplanation: 'Blocks the vasoconstricting effects of angiotensin II, relaxing arteries and reducing pressure load on the heart.',
+    dosageGuidance: 'Take once daily at the same time each day with or without food.',
+    sideEffects: ['Dizziness', 'Nasal congestion', 'Back pain', 'Fatigue'],
+    storageInstructions: 'Store in original packaging below 25°C.',
+    precautions: [
+      'Contraindicated in pregnancy.',
+      'Monitor serum potassium and renal parameters periodically.'
+    ]
+  },
+  {
+    id: 'rosuvastatin',
+    genericName: 'Rosuvastatin Calcium',
+    brandNames: ['Rozavel 10', 'Crestor', 'Rosuvas', 'Novastat', 'Rosave'],
+    therapeuticClass: 'HMG-CoA Reductase Inhibitor (High-Intensity Statin)',
+    typicalStrengths: ['5mg', '10mg', '20mg', '40mg'],
+    commonManufacturers: ['Sun Pharma', 'AstraZeneca', 'Ranbaxy', 'Lupin'],
+    purpose: ['High LDL cholesterol reduction', 'Atherosclerosis prevention', 'Cardiovascular event reduction'],
+    simpleExplanation: 'A potent statin that decreases cholesterol synthesis in the liver and accelerates removal of bad cholesterol from the bloodstream.',
+    dosageGuidance: 'Take 1 tablet once daily, with or without food, at any time of day but consistently at that time.',
+    sideEffects: ['Muscle ache or weakness', 'Headache', 'Dizziness', 'Abdominal pain'],
+    storageInstructions: 'Store below 30°C in moisture-resistant pack.',
+    precautions: [
+      'Promptly report unexplained muscle pain or brown urine.',
+      'Contraindicated in active liver disease or pregnancy.'
+    ]
   }
 ];
 
@@ -336,10 +422,23 @@ export function matchMedicineInCatalog(
         bestMatchedBy = 'generic';
       }
     }
+
+    // 3. Check Generic Active Compound in raw OCR text
+    const genWords = entry.genericName.toLowerCase().split(/[\s\/,&]+/).filter((w) => w.length > 4);
+    for (const w of genWords) {
+      if (cleanOcr.includes(w) && bestScore < 0.85) {
+        const ocrGenScore = 0.85;
+        if (ocrGenScore > bestScore) {
+          bestScore = ocrGenScore;
+          bestMatch = entry;
+          bestMatchedBy = 'ocr';
+        }
+      }
+    }
   }
 
-  // Strict threshold: do not misidentify medicine unless similarity is confident (>= 0.76)
-  if (bestMatch && bestScore >= 0.76) {
+  // Confident matching threshold
+  if (bestMatch && bestScore >= 0.75) {
     return {
       entry: bestMatch,
       confidence: Math.round(bestScore * 100),

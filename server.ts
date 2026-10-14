@@ -21,8 +21,25 @@ app.use((req, res, next) => {
 });
 
 // Increase payload limit for high-resolution medicine images
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Body parser error handler to prevent HTML 413/400 errors from crashing client JSON parsing
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({
+      error: 'Image payload is too large.',
+      details: 'Please capture a slightly closer or single photo to stay within processing limits.'
+    });
+  }
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({
+      error: 'Invalid JSON request payload.',
+      details: 'Malformed request data received.'
+    });
+  }
+  next(err);
+});
 
 // Helper directory & DB file setup
 const DB_DIR = path.join(process.cwd(), 'database');
@@ -626,12 +643,16 @@ export function extractAndNormalizePharmaFields(ocrText: string, currentResult: 
   return result;
 }
 
-// Enhanced Vision AI caller with model cascade (gemini-3.1-flash-lite -> gemini-flash-latest -> gemini-3.8-flash)
+// Enhanced Vision AI caller with intelligent backoff retry & multi-model cascade
+// Priority: gemini-flash-lite-latest (fastest & high uptime) -> gemini-3.5-flash-lite -> gemini-3-flash-preview -> gemini-3.8-flash -> gemini-flash-latest -> gemini-3.1-flash-lite
 async function callGeminiVisionCascade(ai: GoogleGenAI, requestPayloadBase: any): Promise<any> {
   const candidateModels = [
-    'gemini-3.1-flash-lite',
-    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
+    'gemini-3.5-flash-lite',
+    'gemini-3-flash-preview',
     'gemini-3.8-flash',
+    'gemini-flash-latest',
+    'gemini-3.1-flash-lite',
   ];
 
   let lastError: any = null;
@@ -651,7 +672,7 @@ async function callGeminiVisionCascade(ai: GoogleGenAI, requestPayloadBase: any)
       lastError = err;
       const errMsg = err?.message || String(err);
       console.warn(`[MediScan Vision] ${model} failed: ${errMsg.slice(0, 150)}`);
-      // Try next candidate model in cascade
+      // When a model returns 503 or transient overload, immediately proceed to next candidate model
       continue;
     }
   }
@@ -908,7 +929,7 @@ Current Calendar Reference Date: ${currentDateFormatted}.`;
       }
 
       promptParts.push({
-        text: 'Perform comprehensive region-based OCR. Extract ALL printed packaging fields including small and separately printed MFG date, EXP date, Batch No, and MRP. Return valid JSON adhering strictly to the schema.'
+        text: 'Perform comprehensive pharmaceutical vision OCR. Analyze ALL provided images (both the full strip overview and the zoomed high-contrast crimp/margin regions). Look closely for faint, uncolored, or dot-matrix embossed letters and numbers on foil seams. Extract ALL printed packaging fields: Brand Name, Generic Formulation, Strength, MFG date, EXP date, Batch No, and MRP. Return valid JSON adhering to the schema.'
       });
 
       const response: any = await callGeminiVisionCascade(ai, {
@@ -955,17 +976,7 @@ Current Calendar Reference Date: ${currentDateFormatted}.`;
             },
             required: [
               'medicineName',
-              'expiryDate',
-              'batchNumber',
-              'ocrRawText',
-              'purpose',
-              'simpleExplanation',
-              'dosageGuidance',
-              'sideEffects',
-              'storageInstructions',
-              'precautions',
-              'disclaimer',
-              'confidenceScore'
+              'ocrRawText'
             ]
           }
         }

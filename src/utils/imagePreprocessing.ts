@@ -30,7 +30,7 @@ export const DEFAULT_PREPROCESSING: PreprocessingOptions = {
   denoise: false,
   autoCrop: false,
   rotation: 0,
-  maxDim: 1600,
+  maxDim: 1400,
 };
 
 export interface ProcessedVariant {
@@ -342,7 +342,7 @@ export function processImageForOCR(
         }
       }
 
-      const enhancedDataUrl = renderCanvas.toDataURL('image/jpeg', 0.92);
+      const enhancedDataUrl = renderCanvas.toDataURL('image/jpeg', 0.86);
       resolve({
         enhancedDataUrl,
         sharpnessScore: sharpness,
@@ -379,7 +379,7 @@ function enhanceSubCanvas(
   antiGlare: boolean = true
 ): string {
   const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas.toDataURL('image/jpeg', 0.92);
+  if (!ctx) return canvas.toDataURL('image/jpeg', 0.86);
 
   const width = canvas.width;
   const height = canvas.height;
@@ -452,7 +452,7 @@ function enhanceSubCanvas(
     }
   }
 
-  return canvas.toDataURL('image/jpeg', 0.92);
+  return canvas.toDataURL('image/jpeg', 0.86);
 }
 
 /**
